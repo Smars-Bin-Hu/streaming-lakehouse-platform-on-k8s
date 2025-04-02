@@ -1,0 +1,15 @@
+# Directory: k8s/config/spark-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spark-config
+  namespace: default
+  labels:
+    app: spark
+    component: config
+
+data:
+  spark.executor.memory: "2g"
+  spark.executor.cores: "1"
+  spark.default.parallelism: "2"
+  spark.driver.extraJavaOptions: "-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties"

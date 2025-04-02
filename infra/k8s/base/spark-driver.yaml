@@ -1,0 +1,27 @@
+# Directory: k8s/base/spark-driver.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: spark-job
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: spark-driver
+          image: spark-custom:latest
+          command: ["/opt/spark/bin/spark-submit"]
+          args:
+            - "--master"
+            - "k8s://https://kubernetes.default.svc"
+            - "--deploy-mode"
+            - "cluster"
+            - "--name"
+            - "spark-job"
+            - "--class"
+            - "org.apache.spark.examples.SparkPi"
+            - "--conf"
+            - "spark.executor.instances=2"
+            - "--conf"
+            - "spark.kubernetes.container.image=spark-custom:latest"
+            - "local:///opt/spark/examples/jars/spark-examples_2.12-3.4.0.jar"
