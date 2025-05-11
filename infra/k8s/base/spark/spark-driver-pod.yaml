@@ -1,0 +1,76 @@
+# Directory: k8s/base/spark/spark-driver-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: spark-driver
+  namespace: spark
+  labels:
+    app: spark
+    role: driver
+spec:
+  serviceAccountName: spark
+  restartPolicy: Never
+  nodeSelector:
+    tier: compute                       # Driver 也跑在 compute pool
+  securityContext: # 方案 A：整 Pod 以 root 身份运行
+    runAsUser: 0
+    runAsGroup: 0
+    fsGroup: 0
+  containers:
+    - name: spark-driver
+      image: smarsbhu/proj2-data-pipeline-cluster:spark-smars-1.0.2   # Local Image
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: HOME
+          value: /opt/bitnami
+        - name: USER                   # ← 让 JDK 能拿到有效用户名
+          value: root
+      command: ["/bin/bash", "-c"]
+      # --deploy-mode client : 此时 Pod 内进程就是 Driver，而不会让Spark API Server再启动新的 Driver
+      # Client 模式下：Pod → Driver，Driver 再动态起 Executor Pods。
+      # --conf spark.kubernetes.executor.node.selector.tier=compute 让executor也再compute tiers的Node上运行
+      args:
+        - >
+          /opt/bitnami/spark/bin/spark-submit
+          --master k8s://https://kubernetes.default.svc:443
+          --deploy-mode cluster
+          --name spark-hello
+          --class org.apache.spark.examples.SparkPi
+          --conf spark.executor.instances=2
+          --conf spark.kubernetes.container.image=smarsbhu/proj2-data-pipeline-cluster:spark-smars-1.0.2
+          --conf spark.kubernetes.namespace=spark
+          --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark
+          --conf spark.kubernetes.executor.node.selector.tier=compute
+          --conf spark.kubernetes.executor.deleteOnTermination=false
+          --conf spark.kubernetes.driverEnv.HOME=/opt/bitnami        
+          --conf spark.kubernetes.driverEnv.USER=root
+          --conf spark.kubernetes.executorEnv.HOME=/opt/bitnami       
+          --conf spark.kubernetes.executorEnv.USER=root
+          --conf spark.hadoop.hadoop.security.authentication=Simple
+          --conf spark.kubernetes.driver.serviceAccountName=spark
+          --conf spark.kubernetes.driver.service.name=spark-driver
+          --conf spark.kubernetes.submission.waitAppCompletion=true
+          --conf spark.jars.ivy=/opt/bitnami/.ivy2
+          local:///opt/bitnami/spark/examples/jars/spark-examples_2.12-3.3.4.jar
+      ports:
+        - containerPort: 4040
+      volumeMounts:
+        - name: spark-config
+          mountPath: /opt/bitnami/spark/conf/spark-defaults.conf
+          subPath: spark-defaults.conf
+        - name: spark-config
+          mountPath: /opt/bitnami/spark/conf/log4j2.properties
+          subPath: log4j2.properties
+        - name: spark-config
+          mountPath: /opt/bitnami/spark/conf/spark-env.sh
+          subPath: spark-env.sh
+        - name: spark-logs
+          mountPath: /mnt/spark-logs
+  volumes:
+    - name: spark-config
+      configMap:
+        name: spark-config
+    - name: spark-logs
+      persistentVolumeClaim:
+        claimName: spark-log-pvc
+

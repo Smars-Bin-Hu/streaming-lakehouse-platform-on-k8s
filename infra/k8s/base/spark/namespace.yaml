@@ -1,0 +1,59 @@
+# infra/k8s/base/spark/namespace.yaml
+# 创建一个名为 spark 的命名空间，用于逻辑隔离 Spark 相关资源（Pod、Service、ConfigMap等）
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spark
+---
+# 在 spark 命名空间下创建一个名为 spark 的 ServiceAccount
+# 后续 Spark Driver 提交作业时使用这个账户进行认证
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spark              # 账户名称
+  namespace: spark         # 所属命名空间
+---
+# 创建一个集群范围的权限绑定（ClusterRoleBinding）
+# 将上面的 ServiceAccount 赋予 cluster-admin 权限
+# 使得 Spark Driver Pod 可以在 Kubernetes 集群中创建 Executor Pod 等资源
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spark-role
+roleRef:
+  apiGroup: rbac.authorization.k8s.io   # API组，必须这样写
+  kind: ClusterRole                     # 角色类型，绑定的是 ClusterRole 而不是 Role
+  name: cluster-admin                   # 赋予最高级别权限（仅用于测试或本地实验）
+subjects:
+  - kind: ServiceAccount                # 对象类型：ServiceAccount
+    name: spark                         # 要授权的账户名
+    namespace: spark                    # 账户所属命名空间
+---
+# 创建一个 PV
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: spark-log-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /mnt/k8s-spark-logs               # 宿主机路径（自动创建）
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual                  # 必须和 PVC 匹配
+---
+# 在 spark 命名空间下创建一个名为 spark-log-pvc 的PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spark-log-pvc
+  namespace: spark
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: manual  # 如果你没有 StorageClass，可以不写或用 local-path

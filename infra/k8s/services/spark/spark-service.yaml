@@ -1,0 +1,16 @@
+# Directory: k8s/services/spark/spark-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-driver-ui
+  namespace: spark
+spec:
+  type: NodePort
+  selector:
+    app: spark
+    role: driver
+  ports:
+    - name: webui
+      port: 4040
+      targetPort: 4040
+      nodePort: 30002
