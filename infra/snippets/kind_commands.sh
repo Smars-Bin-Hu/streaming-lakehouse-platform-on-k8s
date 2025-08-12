@@ -40,8 +40,9 @@ kubectl describe pod spark-driver -n spark    # 查看pod信息
 
 # 查看Spark运行日志
 kubectl logs spark-driver -n spark
+kubectl logs spark-hello-355ba696bd5cb34e-driver -n spark
 kubectl logs spark-hello-355ba696bd5cb34e-driver -n spark -c spark-kubernetes-executor
-kubectl logs spark-pi-d1fded96bd4a60a8-exec-2 -n spark -c spark-kubernetes-executor
+kubectl logs  -n spark -c spark-kubernetes-executor
 ############################################### Spark on K8s ##################################################
 
 
